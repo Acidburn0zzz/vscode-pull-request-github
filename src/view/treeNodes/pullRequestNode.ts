@@ -100,7 +100,8 @@ export function providePRDocumentComments(
 					gravatar: comment.user!.avatarUrl,
 					canEdit: comment.canEdit,
 					canDelete: comment.canDelete,
-					isDraft: !!comment.isDraft
+					isDraft: !!comment.isDraft,
+					// reactions: comment.reactions ? comment.reactions.map( reaction => { label: reaction.content }): []
 				};
 			}),
 			collapsibleState: vscode.CommentThreadCollapsibleState.Expanded,

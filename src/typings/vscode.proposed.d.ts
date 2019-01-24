@@ -785,6 +785,7 @@ declare module 'vscode' {
 		command?: Command;
 
 		isDraft: boolean;
+		commentReactions?: CommentReaction[];
 	}
 
 	export interface CommentThreadChangedEvent {
@@ -807,6 +808,11 @@ declare module 'vscode' {
 		 * Changed draft mode
 		 */
 		readonly inDraftMode?: boolean;
+	}
+
+	interface CommentReaction {
+		readonly label?: string;
+		readonly iconPath?: string | Uri;
 	}
 
 	interface DocumentCommentProvider {
@@ -842,6 +848,12 @@ declare module 'vscode' {
 		startDraftLabel?: string;
 		deleteDraftLabel?: string;
 		finishDraftLabel?: string;
+
+		commentReactions?: CommentReaction[];
+
+		addReaction(comment: Comment, reaction: CommentReaction): Promise<void>;
+		deleteReaction(comment: Comment, reaction: CommentReaction): Promise<void>;
+
 
 		/**
 		 * Notify of updates to comment threads.

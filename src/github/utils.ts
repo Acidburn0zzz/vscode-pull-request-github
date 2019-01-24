@@ -6,10 +6,10 @@
 
 import * as Octokit from '../common/octokit';
 import { IAccount, PullRequest } from './interface';
-import { Comment } from '../common/comment';
+import { Comment, Reaction } from '../common/comment';
 import { parseDiffHunk, DiffHunk } from '../common/diffHunk';
 import { EventType, TimelineEvent } from '../common/timelineEvent';
-import { ReviewComment } from './graphql';
+import { ReviewComment, Reaction as GQLReaction } from './graphql';
 
 export function convertRESTUserToAccount(user: Octokit.PullRequestsGetAllResponseItemUser): IAccount {
 	return {
@@ -164,13 +164,25 @@ export function parseGraphQLComment(comment: ReviewComment): Comment {
 		htmlUrl: comment.url,
 		graphNodeId: comment.id,
 		isDraft: comment.state === 'PENDING',
-		inReplyToId: comment.replyTo && comment.replyTo.databaseId
+		inReplyToId: comment.replyTo && comment.replyTo.databaseId,
+		reactions: comment.reactions ? comment.reactions.edges.map(parseGraphQLReaction) : []
 	};
 
 	const diffHunks = parseCommentDiffHunk(c);
 	c.diffHunks = diffHunks;
 
 	return c;
+}
+
+export function parseGraphQLReaction(reactionNode: { node: GQLReaction }): Reaction {
+	const reaction: Reaction = {
+		content: reactionNode.node.content,
+		user: reactionNode.node.user,
+		id: reactionNode.node.id,
+		viewerCanReact: reactionNode.node.reactable && reactionNode.node.reactable.viewerCanReact
+	};
+
+	return reaction;
 }
 
 export function parseGraphQLTimelineEvents(events: any[]): TimelineEvent[] {

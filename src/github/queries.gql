@@ -125,6 +125,22 @@ fragment ReviewComment on PullRequestReviewComment {
 	originalCommit {
 		oid
 	}
+	reactions(first:8) {
+		edges {
+			node {
+				content
+				user {
+					login
+					avatarUrl
+					url
+				}
+				id
+				reactable {
+					viewerCanReact
+				}
+			}
+		}
+	}
 	viewerCanUpdate
 	viewerCanDelete
 }
