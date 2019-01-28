@@ -101,7 +101,9 @@ export function providePRDocumentComments(
 					canEdit: comment.canEdit,
 					canDelete: comment.canDelete,
 					isDraft: !!comment.isDraft,
-					// reactions: comment.reactions ? comment.reactions.map( reaction => { label: reaction.content }): []
+					commentReactions: comment.reactions ? comment.reactions.map(reaction => {
+						return { label: reaction.label, hasReacted: reaction.viewerHasReacted };
+					}) : []
 				};
 			}),
 			collapsibleState: vscode.CommentThreadCollapsibleState.Expanded,
@@ -146,7 +148,10 @@ function commentsToCommentThreads(fileChange: InMemFileChangeNode, comments: Com
 					gravatar: comment.user!.avatarUrl,
 					canEdit: comment.canEdit,
 					canDelete: comment.canDelete,
-					isDraft: !!comment.isDraft
+					isDraft: !!comment.isDraft,
+					commentReactions: comment.reactions ? comment.reactions.map(reaction => {
+						return { label: reaction.label, hasReacted: reaction.viewerHasReacted };
+					}) : []
 				};
 			}),
 			collapsibleState: vscode.CommentThreadCollapsibleState.Expanded,
@@ -296,7 +301,9 @@ export class PRNode extends TreeNode {
 						deleteComment: this.deleteComment.bind(this),
 						startDraft: this.startDraft.bind(this),
 						finishDraft: this.finishDraft.bind(this),
-						deleteDraft: this.deleteDraft.bind(this)
+						deleteDraft: this.deleteDraft.bind(this),
+						addReaction: this.addReaction.bind(this),
+						deleteReaction: this.deleteReaction.bind(this)
 					});
 
 					this._disposables.push(onDidSubmitReview(_ => {
@@ -711,6 +718,50 @@ export class PRNode extends TreeNode {
 		} catch (e) {
 			vscode.window.showErrorMessage(`Failed to submit the review: ${e}`);
 		}
+	}
+
+	async addReaction(document: vscode.TextDocument, comment: vscode.Comment, reaction: vscode.CommentReaction) {
+		const fileChange = this.findMatchingFileNode(document.uri);
+		if (!fileChange) {
+			throw new Error('Unable to find matching file');
+		}
+
+		let matchedRawComment = fileChange.comments.find(cmt => String(cmt.id) === comment.commentId);
+
+		if (!matchedRawComment) {
+			throw new Error('Unable to find matching comment');
+		}
+
+		await this._prManager.addCommentReaction(this.pullRequestModel, matchedRawComment.graphNodeId, reaction);
+		const params = fromPRUri(document.uri);
+		let comments = await this._prManager.getPullRequestComments(this.pullRequestModel);
+		let changedCommentThreads = commentsToCommentThreads(fileChange, comments.filter(cmt => cmt.path === fileChange.fileName && cmt.position !== null), params!.isBase);
+
+		this._onDidChangeCommentThreads.fire({
+			added: [],
+			changed: changedCommentThreads,
+			removed: []
+		});
+	}
+
+	async deleteReaction(document: vscode.TextDocument, comment: vscode.Comment, reaction: vscode.CommentReaction) {
+		const fileChange = this.findMatchingFileNode(document.uri);
+		let matchedRawComment = fileChange.comments.find(cmt => String(cmt.id) === comment.commentId);
+
+		if (!matchedRawComment) {
+			throw new Error('Unable to find matching comment');
+		}
+
+		await this._prManager.deleteCommentReaction(this.pullRequestModel, matchedRawComment.graphNodeId, reaction);
+		const params = fromPRUri(document.uri);
+		let comments = await this._prManager.getPullRequestComments(this.pullRequestModel);
+		let changedCommentThreads = commentsToCommentThreads(fileChange, comments.filter(cmt => cmt.path === fileChange.fileName && cmt.position !== null), params!.isBase);
+
+		this._onDidChangeCommentThreads.fire({
+			added: [],
+			changed: changedCommentThreads,
+			removed: []
+		});
 	}
 
 	dispose(): void {

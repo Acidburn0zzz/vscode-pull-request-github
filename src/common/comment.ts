@@ -7,10 +7,8 @@ import { DiffHunk } from './diffHunk';
 import { IAccount } from '../github/interface';
 
 export interface Reaction {
-	content: string;
-	user: IAccount;
-	id: string;
-	viewerCanReact: boolean;
+	label: string;
+	viewerHasReacted: boolean;
 }
 
 export interface Comment {

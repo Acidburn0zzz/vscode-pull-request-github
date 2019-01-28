@@ -9,7 +9,7 @@ import { IAccount, PullRequest } from './interface';
 import { Comment, Reaction } from '../common/comment';
 import { parseDiffHunk, DiffHunk } from '../common/diffHunk';
 import { EventType, TimelineEvent } from '../common/timelineEvent';
-import { ReviewComment, Reaction as GQLReaction } from './graphql';
+import { ReviewComment } from './graphql';
 
 export function convertRESTUserToAccount(user: Octokit.PullRequestsGetAllResponseItemUser): IAccount {
 	return {
@@ -165,7 +165,7 @@ export function parseGraphQLComment(comment: ReviewComment): Comment {
 		graphNodeId: comment.id,
 		isDraft: comment.state === 'PENDING',
 		inReplyToId: comment.replyTo && comment.replyTo.databaseId,
-		reactions: comment.reactions ? comment.reactions.edges.map(parseGraphQLReaction) : []
+		reactions: parseGraphQLReaction(comment)
 	};
 
 	const diffHunks = parseCommentDiffHunk(c);
@@ -174,15 +174,26 @@ export function parseGraphQLComment(comment: ReviewComment): Comment {
 	return c;
 }
 
-export function parseGraphQLReaction(reactionNode: { node: GQLReaction }): Reaction {
-	const reaction: Reaction = {
-		content: reactionNode.node.content,
-		user: reactionNode.node.user,
-		id: reactionNode.node.id,
-		viewerCanReact: reactionNode.node.reactable && reactionNode.node.reactable.viewerCanReact
-	};
+export function parseGraphQLReaction(comment: ReviewComment): Reaction[] {
+	let reactionConentEmojiMapping = getReactionGroup().reduce((prev, curr) => {
+		prev[curr.title] = curr.label;
+		return prev;
+	}, {} as { [key:string] : string });
+	let reactionGroup = comment.reactionGroups.reduce((prev, curr) => {
+		prev[curr.content] = curr.viewerHasReacted;
+		return prev;
+	}, {} as { [key:string] : boolean });
 
-	return reaction;
+	let reactions = comment.reactions.edges.map(node => {
+		const reaction: Reaction = {
+			label: reactionConentEmojiMapping[node.node.content],
+			viewerHasReacted: reactionGroup[node.node.content]
+		};
+
+		return reaction;
+	});
+
+	return reactions;
 }
 
 export function parseGraphQLTimelineEvents(events: any[]): TimelineEvent[] {
@@ -234,4 +245,36 @@ export function convertRESTTimelineEvents(events: any[]): TimelineEvent[] {
 	});
 
 	return events;
+}
+
+export function getReactionGroup(): { title: string; label: string; }[] {
+	let ret = [
+		{
+			title: 'CONFUSED',
+			label: '😕'
+		}, {
+			title: 'EYES',
+			label: '👀'
+		}, {
+			title: 'HEART',
+			label: '❤'
+		}, {
+			title: 'HOORAY',
+			label: '🎉'
+		}, {
+			title: 'LAUGH',
+			label: '😄'
+		}, {
+			title: 'ROCKET',
+			label: '🚀'
+		}, {
+			title: 'THUMBS_DOWN',
+			label: '👎'
+		}, {
+			title: 'THUMBS_UP',
+			label: '👍'
+		}
+	];
+
+	return ret;
 }

@@ -1,5 +1,4 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
+/*--------------------------------------------------------------------------------------------- *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
@@ -25,6 +24,7 @@ import { Remote, parseRepositoryRemotes } from '../common/remote';
 import { RemoteQuickPickItem } from './quickpick';
 import { PullRequestManager, onDidSubmitReview } from '../github/pullRequestManager';
 import { PullRequestModel } from '../github/pullRequestModel';
+import { getReactionGroup } from '../github/utils';
 
 export class ReviewManager implements vscode.DecorationProvider {
 	public static ID = 'Review';
@@ -220,7 +220,7 @@ export class ReviewManager implements vscode.DecorationProvider {
 				await this.updateComments();
 			}
 			this.pollForStatusChange();
-		}, 1000 * 30);
+		}, 1000 * 300);
 	}
 
 	private async updateState() {
@@ -581,6 +581,26 @@ export class ReviewManager implements vscode.DecorationProvider {
 					return true;
 				}
 
+				if (!matchingComment[0].commentReactions && !oldComment.commentReactions) {
+					// no comment reactions
+					return false;
+				}
+
+				if (!matchingComment[0].commentReactions || !oldComment.commentReactions) {
+					return true;
+				}
+
+				if (matchingComment[0].commentReactions!.length !== oldComment.commentReactions!.length) {
+					return true;
+				}
+
+				for (let i = 0; i < matchingComment[0].commentReactions!.length; i++) {
+					if (matchingComment[0].commentReactions![i].label !== oldComment.commentReactions![i].label ||
+						matchingComment[0].commentReactions![i].hasReacted !== oldComment.commentReactions![i].hasReacted) {
+						return true;
+					}
+				}
+
 				return false;
 			});
 		}
@@ -812,7 +832,10 @@ export class ReviewManager implements vscode.DecorationProvider {
 						command: command,
 						canEdit: comment.canEdit,
 						canDelete: comment.canDelete,
-						isDraft: !!comment.isDraft
+						isDraft: !!comment.isDraft,
+						commentReactions: comment.reactions ? comment.reactions.map(reaction => {
+							return { label: reaction.label, hasReacted: reaction.viewerHasReacted };
+						}) : []
 					};
 				}),
 				collapsibleState: collapsibleState
@@ -1046,7 +1069,10 @@ export class ReviewManager implements vscode.DecorationProvider {
 									gravatar: comment.user!.avatarUrl,
 									canEdit: comment.canEdit,
 									canDelete: comment.canDelete,
-									isDraft: !!comment.isDraft
+									isDraft: !!comment.isDraft,
+									commentReactions: comment.reactions ? comment.reactions.map(reaction => {
+										return { label: reaction.label, hasReacted: reaction.viewerHasReacted };
+									}) : []
 								};
 							}),
 							collapsibleState: vscode.CommentThreadCollapsibleState.Expanded
@@ -1070,7 +1096,10 @@ export class ReviewManager implements vscode.DecorationProvider {
 			finishDraft: supportsGraphQL ? this.finishDraft.bind(this) : undefined,
 			startDraftLabel: 'Start Review',
 			deleteDraftLabel: 'Delete Review',
-			finishDraftLabel: 'Submit Review'
+			finishDraftLabel: 'Submit Review',
+			reactionGroup: supportsGraphQL ? getReactionGroup() : undefined,
+			addReaction: supportsGraphQL ? this.addReaction.bind(this) : undefined,
+			deleteReaction: supportsGraphQL ? this.deleteReaction.bind(this) : undefined
 		}));
 
 		this._localToDispose.push(vscode.workspace.registerWorkspaceCommentProvider({
@@ -1085,6 +1114,66 @@ export class ReviewManager implements vscode.DecorationProvider {
 				return [...comments, ...outdatedComments].reduce((prev, curr) => prev.concat(curr), []);
 			}
 		}));
+	}
+
+	private async addReaction(document: vscode.TextDocument, comment: vscode.Comment, reaction: vscode.CommentReaction) {
+		if (!this._prManager.activePullRequest) {
+			throw new Error('Unable to find active pull request');
+		}
+
+		try {
+			if (!this._prManager.activePullRequest) {
+				throw new Error('Unable to find active pull request');
+			}
+
+			const matchedFile = this.findMatchedFileByUri(document);
+			if (!matchedFile) {
+				throw new Error('Unable to find matching file');
+			}
+
+			let matchedRawComment = matchedFile.comments.find(cmt => String(cmt.id) === comment.commentId);
+
+			if (!matchedRawComment) {
+				throw new Error('Unable to find matching comment');
+			}
+
+			await this._prManager.addCommentReaction(this._prManager.activePullRequest, matchedRawComment.graphNodeId, reaction);
+
+			// trigger update
+			this.updateComments();
+		} catch (e) {
+			vscode.window.showErrorMessage(`Failed to add the reaction: ${e}`);
+		}
+	}
+
+	private async deleteReaction(document: vscode.TextDocument, comment: vscode.Comment, reaction: vscode.CommentReaction) {
+		if (!this._prManager.activePullRequest) {
+			throw new Error('Unable to find active pull request');
+		}
+
+		try {
+			if (!this._prManager.activePullRequest) {
+				throw new Error('Unable to find active pull request');
+			}
+
+			const matchedFile = this.findMatchedFileByUri(document);
+			if (!matchedFile) {
+				throw new Error('Unable to find matching file');
+			}
+
+			let matchedRawComment = matchedFile.comments.find(cmt => String(cmt.id) === comment.commentId);
+
+			if (!matchedRawComment) {
+				throw new Error('Unable to find matching comment');
+			}
+
+			await this._prManager.deleteCommentReaction(this._prManager.activePullRequest, matchedRawComment.graphNodeId, reaction);
+
+			// trigger update
+			this.updateComments();
+		} catch (e) {
+			vscode.window.showErrorMessage(`Failed to delete the reaction: ${e}`);
+		}
 	}
 
 	private async startDraft(_document: vscode.TextDocument, _token: vscode.CancellationToken): Promise<void> {

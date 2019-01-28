@@ -125,6 +125,13 @@ fragment ReviewComment on PullRequestReviewComment {
 	originalCommit {
 		oid
 	}
+	reactionGroups {
+		content
+		viewerHasReacted
+		users {
+			totalCount
+		}
+	}
 	reactions(first:8) {
 		edges {
 			node {
@@ -203,6 +210,22 @@ mutation DeleteReview($input: DeletePullRequestReviewInput!) {
 			comments(first:100) {
 					nodes { ...ReviewComment }
 			}
+		}
+	}
+}
+
+mutation AddReaction($input: AddReactionInput!) {
+	addReaction(input: $input) {
+		reaction {
+			content
+		}
+	}
+}
+
+mutation DeleteReaction($input: RemoveReactionInput!){
+	removeReaction(input:$input){
+		reaction {
+			content
 		}
 	}
 }

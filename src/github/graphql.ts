@@ -34,6 +34,14 @@ export interface IssueComment {
 	viewerCanDelete: boolean;
 }
 
+export interface ReactionGroup {
+	content: string;
+	viewerHasReacted: boolean;
+	users: {
+		totalCount: number;
+	};
+}
+
 export interface Reaction {
 	content: string;
 	user: {
@@ -75,6 +83,7 @@ export interface ReviewComment {
 	replyTo: {
 		databaseId: number;
 	};
+	reactionGroups: ReactionGroup[];
 	reactions: {
 		edges: [
 			{
