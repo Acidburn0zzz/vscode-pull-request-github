@@ -471,7 +471,7 @@
     "tunnel": "0.0.6",
     "vscode": "^1.1.18",
     "vsls": "^0.3.967",
-    "ws": "^6.0.0"
+    "ws": "^7.4.6"
   },
   "optionalDependencies": {
     "spawn-sync": "^2.0.0"
