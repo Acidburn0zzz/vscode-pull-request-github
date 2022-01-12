@@ -459,7 +459,7 @@
     "graphql": "^14.0.2",
     "iconv-lite": "0.4.23",
     "js-base64": "^2.4.9",
-    "markdown-it": "^8.4.0",
+    "markdown-it": "^12.3.2",
     "markdown-it-checkbox": "^1.1.0",
     "markdown-it-sanitizer": "github:rebornix/markdown-it-sanitizer#10d930d08236ef4609ad10a6087745461d91cc7c",
     "moment": "^2.22.1",
