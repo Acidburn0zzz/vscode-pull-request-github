@@ -462,7 +462,7 @@
     "markdown-it": "^8.4.0",
     "markdown-it-checkbox": "^1.1.0",
     "markdown-it-sanitizer": "github:rebornix/markdown-it-sanitizer#10d930d08236ef4609ad10a6087745461d91cc7c",
-    "moment": "^2.22.1",
+    "moment": "^2.29.2",
     "node-emoji": "^1.8.1",
     "node-fetch": "^2.1.1",
     "query-string": "^6.2.0",
